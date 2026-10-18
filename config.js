@@ -6,6 +6,6 @@
 // NUNCA pegues aquí la llave "service_role" ni "secret".
 
 window.APP_CONFIG = {
-  SUPABASE_URL: "https://TU-PROYECTO.supabase.co",
-  SUPABASE_ANON_KEY: "TU-LLAVE-ANON-O-PUBLISHABLE"
+  SUPABASE_URL: "https://lflhrtflaybjnjjdcleq.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_3xquHwNW54k04uSUCztuGw_m4ThKwuA"
 };
