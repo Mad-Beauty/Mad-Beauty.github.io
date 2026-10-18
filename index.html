@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mad Beauty · Agenda tu cita</title>
+<meta name="description" content="Agenda tu cita de uñas en Mad Beauty. Elige tu servicio, día y hora.">
+
+<!-- Vista previa al compartir por WhatsApp, Facebook, etc. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Mad Beauty">
+<meta property="og:title" content="Mad Beauty · Agenda tu cita">
+<meta property="og:description" content="Elige tu servicio, día y hora, y agenda tu cita de uñas.">
+<meta property="og:url" content="https://emiliano1516.github.io/madbeauty-citas/">
+<meta property="og:image" content="https://emiliano1516.github.io/madbeauty-citas/icons/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="color-scheme" content="light only">
+<meta name="theme-color" content="#FCF8F6">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div id="setupBanner" class="banner bad" hidden>
+    Falta conectar la base de datos. Abre <strong>config.js</strong> y pega la URL y la llave de tu proyecto de Supabase.
+  </div>
+  <div id="loadBanner" class="banner bad" hidden></div>
+
+  <header class="hero">
+    <img class="logo" src="icons/logo-mad-beauty.png" alt="Mad Beauty" width="210" height="210">
+    <h1>Tus uñas, a tu estilo.</h1>
+    <p class="lead">Elige tu servicio, agenda tu día y hora, y avisamos por WhatsApp.</p>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="servicios">Servicios</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="agendar">Agendar</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="cotizar">Cotizar diseño</button>
+  </div>
+
+  <!-- SERVICIOS -->
+  <section id="servicios" role="tabpanel">
+    <h2>Servicios y precios</h2>
+    <p class="muted">Los precios son base; los diseños especiales se cotizan aparte.</p>
+    <div class="chips" id="chips" role="group" aria-label="Filtrar por categoría"></div>
+    <div id="svcList"></div>
+  </section>
+
+  <!-- AGENDAR -->
+  <section id="agendar" role="tabpanel" hidden>
+    <h2>Agenda tu cita</h2>
+    <p class="muted" style="margin-bottom:16px">Tu cita queda <strong>pendiente</strong> hasta que la manicurista la confirme.</p>
+
+    <div class="card" id="formCard">
+      <div class="field">
+        <label for="nombre">Tu nombre</label>
+        <input type="text" id="nombre" autocomplete="name" maxlength="80" placeholder="Ej. María López">
+      </div>
+      <div class="field">
+        <label for="tel">Tu WhatsApp</label>
+        <input type="tel" id="tel" autocomplete="tel" inputmode="tel" maxlength="20" placeholder="Ej. 834 123 4567">
+      </div>
+      <div class="field">
+        <span class="lbl">Servicios</span>
+        <div class="checks" id="checks"></div>
+      </div>
+      <div class="field">
+        <label for="fecha">Fecha</label>
+        <input type="date" id="fecha">
+        <div class="err" id="fechaErr"></div>
+      </div>
+      <div class="field">
+        <span class="lbl">Hora</span>
+        <div class="slots" id="slots"></div>
+        <p class="muted" id="slotsHint" style="font-size:.85rem;margin-top:8px">Elige servicios y una fecha.</p>
+      </div>
+      <div class="field">
+        <label for="notas">Notas (opcional)</label>
+        <textarea id="notas" maxlength="500" placeholder="Ej. Quiero el diseño de la foto que te mandé"></textarea>
+      </div>
+      <div class="total"><span class="muted" id="totalInfo">Sin servicios elegidos</span><strong id="total">$0</strong></div>
+      <div class="err" id="formErr"></div>
+      <button class="btn block" id="btnAgendar" type="button">Agendar cita</button>
+    </div>
+
+    <div class="card done" id="doneCard" hidden>
+      <h3>¡Cita agendada!</h3>
+      <div class="sum" id="doneSum"></div>
+      <p class="muted" style="margin-bottom:14px;font-size:.92rem">Toca el botón para enviar el aviso por WhatsApp a la manicurista. Si no se abrió solo, es necesario tocarlo.</p>
+      <a class="btn wa block" id="doneWa" target="_blank" rel="noopener">Enviar aviso por WhatsApp</a>
+      <button class="btn ghost block" id="btnOtra" type="button" style="margin-top:10px">Agendar otra cita</button>
+    </div>
+
+    <div class="card" id="misCard">
+      <h3 style="margin-bottom:6px">Mis citas</h3>
+      <div class="banner" id="cancelBanner" hidden>
+        <strong>Tu cita fue cancelada.</strong> Toca el botón para avisar a la manicurista por WhatsApp.
+        <a class="btn wa block" id="cancelWa" target="_blank" rel="noopener" style="margin-top:10px">Avisar por WhatsApp</a>
+        <button class="x" id="cancelBannerClose" type="button" style="margin-top:8px">Cerrar</button>
+      </div>
+      <div id="misCitas"></div>
+    </div>
+  </section>
+
+  <!-- COTIZAR -->
+  <section id="cotizar" role="tabpanel" hidden>
+    <h2>Cotiza tu diseño</h2>
+    <p class="muted" style="margin-bottom:16px">Cuéntanos qué diseño quieres. Al tocar el botón se abre WhatsApp: ahí puedes adjuntar fotos de inspiración.</p>
+    <div class="card">
+      <div class="field">
+        <label for="qNombre">Tu nombre (opcional)</label>
+        <input type="text" id="qNombre" autocomplete="name" maxlength="80">
+      </div>
+      <div class="field">
+        <label for="qDesc">¿Qué diseño te gustaría?</label>
+        <textarea id="qDesc" maxlength="600" placeholder="Ej. Acrílico almendra, francés en rosa con mariposas en dos uñas"></textarea>
+      </div>
+      <a class="btn wa block" id="btnCotizar" target="_blank" rel="noopener">Cotizar por WhatsApp</a>
+    </div>
+  </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

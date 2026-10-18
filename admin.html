@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel · Mad Beauty</title>
+
+<!-- App instalable (solo el panel) -->
+<link rel="manifest" href="admin.webmanifest">
+<meta name="color-scheme" content="light only">
+<meta name="theme-color" content="#FCF8F6">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mis citas">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="wrap wide">
+
+  <div id="setupBanner" class="banner bad" hidden>
+    Falta conectar la base de datos. Abre <strong>config.js</strong> y pega la URL y la llave de tu proyecto de Supabase.
+  </div>
+
+  <!-- INICIO DE SESIÓN -->
+  <section id="login" hidden style="max-width:420px;margin:40px auto 0">
+    <h2>Panel de la manicurista</h2>
+    <p class="muted" style="margin-bottom:16px">Inicia sesión para ver y administrar las citas.</p>
+    <div class="card">
+      <div class="field">
+        <label for="email">Correo</label>
+        <input type="email" id="email" autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="pass">Contraseña</label>
+        <input type="password" id="pass" autocomplete="current-password">
+      </div>
+      <div class="err" id="loginErr"></div>
+      <button class="btn block" id="btnLogin" type="button">Entrar</button>
+    </div>
+  </section>
+
+  <!-- PANEL -->
+  <section id="panel" hidden>
+    <div class="bar">
+      <h2 id="panelTitle" style="margin:0">Panel</h2>
+      <div class="row">
+        <button class="btn small" id="btnInstall" type="button" hidden>Instalar app</button>
+        <a class="btn ghost small" href="index.html" target="_blank" rel="noopener">Ver página de clientas</a>
+        <button class="btn ghost small" id="btnOut" type="button">Salir</button>
+      </div>
+    </div>
+    <div class="banner" id="waBanner" hidden>
+      <span id="waBannerText"></span>
+      <a class="btn wa small" id="waBannerLink" target="_blank" rel="noopener" style="margin-left:8px">Avisar por WhatsApp</a>
+      <button class="x" id="waBannerClose" type="button" style="margin-left:8px">Cerrar</button>
+    </div>
+    <div class="banner" id="iosHint" hidden>
+      Para instalar la app en iPhone: toca el botón <strong>Compartir</strong> de Safari y elige <strong>Agregar a pantalla de inicio</strong>.
+      <button class="x" id="iosHintClose" type="button" style="margin-left:8px">Entendido</button>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true"  data-tab="citas">Citas</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="bloqueos">Bloqueos</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="servicios">Servicios</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="ajustes">Ajustes</button>
+    </div>
+
+    <!-- CITAS -->
+    <div id="p-citas">
+      <div class="bar">
+        <div class="chips" style="margin:0" id="filtroCitas" role="group" aria-label="Filtro de citas">
+          <button class="chip" type="button" data-f="proximas" aria-pressed="true">Próximas</button>
+          <button class="chip" type="button" data-f="pendientes" aria-pressed="false">Pendientes</button>
+          <button class="chip" type="button" data-f="pasadas" aria-pressed="false">Pasadas</button>
+        </div>
+        <button class="btn ghost small" id="btnRefrescar" type="button">Actualizar</button>
+      </div>
+      <p class="muted" id="citasInfo" style="font-size:.85rem;margin-bottom:8px"></p>
+      <div id="listaCitas"></div>
+    </div>
+
+    <!-- BLOQUEOS -->
+    <div id="p-bloqueos" hidden>
+      <p class="muted" style="margin-bottom:14px">Bloquea días u horas para que las clientas no puedan agendar (vacaciones, comida, cita personal). Si ya existe una cita en ese horario, no se cancela sola: revísala en la pestaña Citas.</p>
+      <div class="card">
+        <div class="grid2">
+          <div class="field"><label for="bDia">Día</label><input type="date" id="bDia"></div>
+          <div class="field"><label for="bMotivo">Motivo (opcional)</label><input type="text" id="bMotivo" maxlength="80" placeholder="Ej. Vacaciones"></div>
+        </div>
+        <label class="check" style="margin-bottom:12px"><input type="checkbox" id="bTodo" checked> Bloquear todo el día</label>
+        <div class="grid2" id="bHoras" hidden>
+          <div class="field"><label for="bDesde">Desde</label><input type="time" id="bDesde" value="14:00"></div>
+          <div class="field"><label for="bHasta">Hasta</label><input type="time" id="bHasta" value="16:00"></div>
+        </div>
+        <div class="err" id="bErr"></div>
+        <button class="btn" id="btnBloquear" type="button">Agregar bloqueo</button>
+      </div>
+      <h3 style="margin:18px 0 8px">Bloqueos activos</h3>
+      <div id="listaBloqueos"></div>
+    </div>
+
+    <!-- SERVICIOS -->
+    <div id="p-servicios" hidden>
+      <div class="bar">
+        <p class="muted">Edita precios, duraciones y descripciones. Los servicios ocultos no los ven las clientas.</p>
+        <button class="btn small" id="btnNuevoSvc" type="button">Agregar servicio</button>
+      </div>
+      <div id="listaServicios"></div>
+    </div>
+
+    <!-- AJUSTES -->
+    <div id="p-ajustes" hidden>
+      <div class="card">
+        <div class="field"><label for="aNombre">Nombre del negocio</label><input type="text" id="aNombre" maxlength="60"></div>
+        <div class="field"><label for="aWa">WhatsApp que recibe los avisos</label>
+          <input type="tel" id="aWa" inputmode="tel" placeholder="528332660757">
+          <p class="muted" style="font-size:.82rem;margin-top:4px">Con lada de país: 52 + 10 dígitos.</p></div>
+        <div class="grid2">
+          <div class="field"><label for="aAbre">Abre</label><input type="time" id="aAbre"></div>
+          <div class="field"><label for="aCierra">Cierra</label><input type="time" id="aCierra"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="aStep">Cada cuántos minutos hay horarios</label>
+            <select id="aStep"><option value="15">15</option><option value="30">30</option><option value="60">60</option></select></div>
+          <div class="field"><label for="aAviso">Aviso mínimo (minutos)</label><input type="number" id="aAviso" min="0" max="10080"></div>
+        </div>
+        <div class="field"><label for="aDias">Cuántos días hacia adelante pueden agendar</label><input type="number" id="aDias" min="1" max="365"></div>
+        <div class="field"><span class="lbl">Días que NO trabajas</span><div class="days" id="aCerrados"></div></div>
+        <div class="err" id="aErr"></div>
+        <button class="btn" id="btnAjustes" type="button">Guardar ajustes</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
