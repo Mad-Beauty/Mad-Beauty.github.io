@@ -31,6 +31,8 @@ async function checkSession() {
   await Promise.all([loadCitas(), loadBloqueos(), loadServicios()]);
   clearInterval(refreshTimer);
   refreshTimer = setInterval(loadCitas, 60000);          // se actualiza solo cada minuto
+  iniciarRealtime();
+  revisarPush();
 }
 
 $("#btnLogin").onclick = async () => {
@@ -48,6 +50,7 @@ $("#pass").addEventListener("keydown", e => { if (e.key === "Enter") $("#btnLogi
 
 $("#btnOut").onclick = async () => {
   clearInterval(refreshTimer);
+  detenerRealtime();
   await sb.auth.signOut();
   show("login");
 };
@@ -292,6 +295,152 @@ $("#btnNuevoSvc").onclick = async () => {
   });
   if (error) { alert("No se pudo agregar el servicio."); return; }
   loadServicios();
+};
+
+/* ---------------- Avisos en vivo: sonido, vibración y banner ---------------- */
+let audioCtx = null, canalCitas = null;
+
+function desbloquearAudio() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch { /* sin audio */ }
+}
+// Los navegadores solo dejan sonar después de un toque de la usuaria
+["pointerdown", "keydown"].forEach(ev => window.addEventListener(ev, desbloquearAudio, { passive: true }));
+
+function sonar(tipo) {
+  try {
+    desbloquearAudio();
+    if (audioCtx) {
+      const notas = tipo === "cancelada" ? [523, 392] : [659, 880, 1047];
+      notas.forEach((f, i) => {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        const t = audioCtx.currentTime + i * 0.18;
+        o.type = "sine"; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.35, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(t); o.stop(t + 0.17);
+      });
+    }
+  } catch { /* ignorar */ }
+  try { if (navigator.vibrate) navigator.vibrate(tipo === "cancelada" ? [200] : [200, 100, 200]); } catch { /* ignorar */ }
+}
+
+function avisar(b, tipo) {
+  sonar(tipo);
+  const cuando = `${shortDay(b.day)} · ${hm(b.start_time)}`;
+  $("#avisoNuevoTexto").textContent = tipo === "cancelada"
+    ? `Cita cancelada: ${b.name}, ${cuando}.`
+    : `Nueva cita: ${b.name}, ${cuando}.`;
+  $("#avisoNuevo").hidden = false;
+  loadCitas();
+}
+$("#avisoNuevoClose").onclick = () => { $("#avisoNuevo").hidden = true; };
+$("#avisoNuevoVer").onclick = () => { $("#avisoNuevo").hidden = true; irA("citas"); loadCitas(); };
+
+function detenerRealtime() {
+  try { if (canalCitas && sb) sb.removeChannel(canalCitas); } catch { /* ignorar */ }
+  canalCitas = null;
+}
+function iniciarRealtime() {
+  detenerRealtime();
+  try {
+    if (!sb || !sb.channel) return;
+    canalCitas = sb.channel("citas-en-vivo")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "bookings" }, p => avisar(p.new, "nueva"))
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bookings" }, p => {
+        if (p.new.status === "cancelled" && p.new.cancelled_by === "client") avisar(p.new, "cancelada");
+        else loadCitas();
+      })
+      .subscribe();
+  } catch { /* sin tiempo real, el panel sigue actualizándose cada minuto */ }
+}
+// Al volver a abrir la app, ponerse al día
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && !$("#panel").hidden) loadCitas();
+});
+
+/* ---------------- Notificaciones push (llegan con la app cerrada) ---------------- */
+const pushSoportado = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const b64aBytes = s => {
+  const pad = "=".repeat((4 - s.length % 4) % 4);
+  const raw = atob((s + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+};
+
+async function suscripcionActual() {
+  try { const reg = await navigator.serviceWorker.ready; return await reg.pushManager.getSubscription(); }
+  catch { return null; }
+}
+
+async function guardarSuscripcion(sub) {
+  const k = sub.toJSON();
+  const { data: { session } } = await sb.auth.getSession();
+  const { error } = await sb.from("push_subscriptions").upsert({
+    endpoint: k.endpoint, p256dh: k.keys.p256dh, auth: k.keys.auth,
+    user_id: session.user.id, user_agent: navigator.userAgent.slice(0, 200)
+  }, { onConflict: "endpoint" });
+  return error;
+}
+
+async function revisarPush() {
+  const msg = $("#pushMsg"), btn = $("#btnPush"), test = $("#btnPushTest"), hint = $("#pushHint");
+  hint.hidden = true; test.hidden = true; btn.hidden = false; btn.disabled = false;
+
+  if (!pushSoportado()) {
+    btn.hidden = true;
+    msg.textContent = esIOS && !yaInstalada()
+      ? "En iPhone primero instala la app: toca Compartir en Safari y elige Agregar a pantalla de inicio. Luego ábrela desde su ícono y activa las notificaciones aquí."
+      : "Este navegador no permite notificaciones. Prueba con Chrome (Android) o con la app instalada (iPhone).";
+    return;
+  }
+  if (Notification.permission === "denied") {
+    btn.hidden = true;
+    msg.textContent = "Las notificaciones están bloqueadas. Actívalas en los ajustes del teléfono, en la configuración de esta app o del navegador, y vuelve a abrir el panel.";
+    return;
+  }
+  const sub = Notification.permission === "granted" ? await suscripcionActual() : null;
+  if (sub) {
+    await guardarSuscripcion(sub);                      // mantiene el registro al día
+    btn.hidden = true; test.hidden = false;
+    msg.textContent = "Notificaciones activadas en este teléfono. Te llegará un aviso con sonido cuando entre o se cancele una cita.";
+  } else {
+    msg.textContent = "Actívalas para que el teléfono te avise con sonido cuando entre una cita, aunque la app esté cerrada.";
+    hint.hidden = false;
+  }
+}
+
+async function activarPush() {
+  const msg = $("#pushMsg");
+  if (!CFG.VAPID_PUBLIC_KEY) { msg.textContent = "Falta la línea VAPID_PUBLIC_KEY en config.js."; return; }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") { await revisarPush(); return; }
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64aBytes(CFG.VAPID_PUBLIC_KEY) });
+    const error = await guardarSuscripcion(sub);
+    if (error) { msg.textContent = "No se pudo guardar el aviso. ¿Ya corriste notificaciones.sql en Supabase?"; return; }
+    await revisarPush();
+  } catch {
+    msg.textContent = "No se pudieron activar las notificaciones. Intenta de nuevo.";
+  }
+}
+$("#btnPush").onclick = activarPush;
+$("#pushHintBtn").onclick = activarPush;
+
+$("#btnPushTest").onclick = async () => {
+  sonar("nueva");
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification("Mad Beauty", {
+      body: "Así te avisará cuando entre una cita nueva.",
+      icon: "icons/icon-192.png", badge: "icons/favicon-32.png", tag: "prueba"
+    });
+  } catch { /* ignorar */ }
 };
 
 /* ---------------- Inicio ---------------- */
