@@ -61,6 +61,15 @@
       <a class="btn wa small" id="waBannerLink" target="_blank" rel="noopener" style="margin-left:8px">Avisar por WhatsApp</a>
       <button class="x" id="waBannerClose" type="button" style="margin-left:8px">Cerrar</button>
     </div>
+    <div class="banner" id="avisoNuevo" hidden>
+      <strong id="avisoNuevoTexto"></strong>
+      <button class="btn small" id="avisoNuevoVer" type="button" style="margin-left:8px">Ver citas</button>
+      <button class="x" id="avisoNuevoClose" type="button" style="margin-left:8px">Cerrar</button>
+    </div>
+    <div class="banner" id="pushHint" hidden>
+      <span id="pushHintTexto">Activa las notificaciones para enterarte al instante cuando entre una cita.</span>
+      <button class="btn small" id="pushHintBtn" type="button" style="margin-left:8px">Activar</button>
+    </div>
     <div class="banner" id="iosHint" hidden>
       Para instalar la app en iPhone: toca el botón <strong>Compartir</strong> de Safari y elige <strong>Agregar a pantalla de inicio</strong>.
       <button class="x" id="iosHintClose" type="button" style="margin-left:8px">Entendido</button>
@@ -136,6 +145,15 @@
         <div class="field"><span class="lbl">Días que NO trabajas</span><div class="days" id="aCerrados"></div></div>
         <div class="err" id="aErr"></div>
         <button class="btn" id="btnAjustes" type="button">Guardar ajustes</button>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h3 style="margin-bottom:6px">Notificaciones en este teléfono</h3>
+        <p class="muted" id="pushMsg" style="margin-bottom:12px;font-size:.92rem"></p>
+        <div class="row">
+          <button class="btn" id="btnPush" type="button">Activar notificaciones</button>
+          <button class="btn ghost" id="btnPushTest" type="button" hidden>Probar aviso</button>
+        </div>
       </div>
     </div>
   </section>

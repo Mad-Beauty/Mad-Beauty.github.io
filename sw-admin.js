@@ -6,7 +6,7 @@
    - La página de las clientas no pasa por aquí.
    ===================================================================== */
 
-const VERSION = "panel-v7";                 // súbele el número cuando cambies archivos
+const VERSION = "panel-v8";                 // súbele el número cuando cambies archivos
 const SHELL = [
   "./admin.html",
   "./css/styles.css",
@@ -45,5 +45,31 @@ self.addEventListener("fetch", e => {
         return res;
       })
       .catch(() => caches.match(req).then(hit => hit || caches.match("./admin.html")))
+  );
+});
+
+/* ---------------- Notificaciones push ---------------- */
+self.addEventListener("push", e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.title || "Mad Beauty", {
+    body: d.body || "",
+    icon: "./icons/icon-192.png",
+    badge: "./icons/favicon-32.png",
+    tag: d.tag || "cita",
+    renotify: true,
+    vibrate: [200, 100, 200],
+    data: { url: d.url || "./admin.html" }
+  }));
+});
+
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || "./admin.html", self.registration.scope).href;
+  e.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+      for (const c of list) if (c.url.split("#")[0] === url.split("#")[0] && "focus" in c) return c.focus();
+      return clients.openWindow(url);
+    })
   );
 });
