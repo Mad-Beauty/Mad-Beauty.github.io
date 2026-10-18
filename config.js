@@ -7,5 +7,6 @@
 
 window.APP_CONFIG = {
   SUPABASE_URL: "https://lflhrtflaybjnjjdcleq.supabase.co",
-  SUPABASE_ANON_KEY: "sb_publishable_3xquHwNW54k04uSUCztuGw_m4ThKwuA"
+  SUPABASE_ANON_KEY: "sb_publishable_3xquHwNW54k04uSUCztuGw_m4ThKwuA",
+  VAPID_PUBLIC_KEY: "BMg-DQCUd4h_nFXFkk5hiLpM1lEb5QA-kX3GYo1XO-tjgSKh2DkafUlZUii-lUHlG0jP5r5IxV_ju0QFGxdTSCw"
 };
