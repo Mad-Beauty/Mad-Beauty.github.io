@@ -250,7 +250,7 @@ function cargarImagen(file) {
     im.src = u;
   });
 }
-async function comprimirFoto(file, max = 1280, calidad = 0.82) {
+async function comprimirFoto(file, max = 1920, calidad = 0.88) {
   const im = await cargarImagen(file);
   const esc = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
   const w = Math.max(1, Math.round(im.naturalWidth * esc)), h = Math.max(1, Math.round(im.naturalHeight * esc));
@@ -272,7 +272,8 @@ async function subirFoto(file) {
   const msg = $("#qFotoMsg");
   if (!file) return;
   if (!sb) { msg.textContent = "La subida de fotos no está disponible. Envíala directo por WhatsApp."; return; }
-  if (!/^image\//.test(file.type)) { msg.textContent = "Elige una imagen (JPG o PNG)."; return; }
+  const esImagen = /^image\//.test(file.type) || /\.(jpe?g|jfif|png|webp|heic|heif|avif|gif|bmp)$/i.test(file.name);
+  if (!esImagen) { msg.textContent = "Elige una imagen (JPG o PNG)."; return; }
 
   subiendoFoto = true; fotoUrl = ""; actualizaCotizar();
   msg.textContent = "Subiendo foto…";
@@ -287,17 +288,30 @@ async function subirFoto(file) {
     $("#qFotoPrev").hidden = false;
     $("#qFotoBtn").textContent = "Cambiar foto";
     msg.textContent = "Foto lista. Irá en tu mensaje de WhatsApp.";
-  } catch {
+  } catch (e) {
+    console.error("Foto:", e);
+    const heic = /hei[cf]/i.test(file.type + " " + file.name);
     quitarFoto(false);
-    msg.textContent = "No se pudo subir la foto. Intenta con otra, o envíala directo por WhatsApp.";
+    msg.textContent = heic
+      ? "Ese formato (HEIC) no se puede usar aquí. Elige una foto JPG o PNG."
+      : (e && e.message === "imagen")
+        ? "No se pudo leer esa imagen. Prueba con una foto JPG o PNG."
+        : "No se pudo subir la foto. Intenta con otra, o envíala directo por WhatsApp.";
   } finally {
     subiendoFoto = false;
     actualizaCotizar();
   }
 }
-$("#qFotoBtn").onclick = () => $("#qFoto").click();
-$("#qFoto").onchange = e => subirFoto(e.target.files[0]);
+$("#qFoto").onchange = e => { const f = e.target.files[0]; e.target.value = ""; subirFoto(f); };
 $("#qFotoQuitar").onclick = () => quitarFoto();
+
+// Arrastrar y soltar (computadora)
+const zona = $("#qDrop");
+["dragenter", "dragover"].forEach(ev => zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.remove("over"); }));
+zona.addEventListener("drop", e => { const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) subirFoto(f); });
+// Si sueltan la foto fuera de la zona, que el navegador no la abra y se salga de la página
+["dragover", "drop"].forEach(ev => window.addEventListener(ev, e => { if (!zona.contains(e.target)) e.preventDefault(); }));
 
 /* ---------------- Inicio ---------------- */
 async function init() {
