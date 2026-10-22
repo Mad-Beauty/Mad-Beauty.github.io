@@ -224,14 +224,80 @@ async function cancelar(b, mine) {
 $("#cancelBannerClose").onclick = () => { $("#cancelBanner").hidden = true; };
 
 /* ---------------- Cotizar ---------------- */
+let fotoUrl = "", subiendoFoto = false;
+const FOTO_MSG = "Una imagen de las uñas que te gustan. Le llegará a la manicurista en tu mensaje.";
+
 function actualizaCotizar() {
   const n = $("#qNombre").value.trim(), d = $("#qDesc").value.trim();
   const txt = `Hola 👋${n ? " soy " + n + "." : ""} Quiero cotizar un diseño de uñas.` +
-              (d ? `\n\n*Lo que busco:* ${d}` : "") + `\n\nTe mando fotos de inspiración por aquí.`;
-  $("#btnCotizar").href = waLink(settings ? settings.whatsapp : CFG.WHATSAPP_FALLBACK || "", txt);
+              (d ? `\n\n*Lo que busco:* ${d}` : "") +
+              (fotoUrl ? `\n\n*Foto de referencia:* ${fotoUrl}` : "") +
+              `\n\nTe mando más fotos de inspiración por aquí.`;
+  const a = $("#btnCotizar");
+  a.href = waLink(settings ? settings.whatsapp : CFG.WHATSAPP_FALLBACK || "", txt);
+  a.setAttribute("aria-disabled", subiendoFoto ? "true" : "false");
 }
 $("#qNombre").oninput = actualizaCotizar;
 $("#qDesc").oninput = actualizaCotizar;
+$("#btnCotizar").addEventListener("click", e => { if (subiendoFoto) e.preventDefault(); });
+
+// Reduce la foto (los celulares dan fotos enormes) antes de subirla
+function cargarImagen(file) {
+  return new Promise((res, rej) => {
+    const u = URL.createObjectURL(file), im = new Image();
+    im.onload = () => { URL.revokeObjectURL(u); res(im); };
+    im.onerror = () => { URL.revokeObjectURL(u); rej(new Error("imagen")); };
+    im.src = u;
+  });
+}
+async function comprimirFoto(file, max = 1280, calidad = 0.82) {
+  const im = await cargarImagen(file);
+  const esc = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
+  const w = Math.max(1, Math.round(im.naturalWidth * esc)), h = Math.max(1, Math.round(im.naturalHeight * esc));
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  cv.getContext("2d").drawImage(im, 0, 0, w, h);
+  return new Promise((res, rej) => cv.toBlob(b => b ? res(b) : rej(new Error("blob")), "image/jpeg", calidad));
+}
+
+function quitarFoto(limpiarMsg = true) {
+  fotoUrl = "";
+  $("#qFoto").value = "";
+  $("#qFotoPrev").hidden = true;
+  $("#qFotoBtn").textContent = "Subir una foto";
+  if (limpiarMsg) $("#qFotoMsg").textContent = FOTO_MSG;
+  actualizaCotizar();
+}
+
+async function subirFoto(file) {
+  const msg = $("#qFotoMsg");
+  if (!file) return;
+  if (!sb) { msg.textContent = "La subida de fotos no está disponible. Envíala directo por WhatsApp."; return; }
+  if (!/^image\//.test(file.type)) { msg.textContent = "Elige una imagen (JPG o PNG)."; return; }
+
+  subiendoFoto = true; fotoUrl = ""; actualizaCotizar();
+  msg.textContent = "Subiendo foto…";
+  try {
+    const blob = await comprimirFoto(file);
+    const id = crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(36).slice(2);
+    const path = `cotizaciones/${id}.jpg`;
+    const { error } = await sb.storage.from("referencias").upload(path, blob, { contentType: "image/jpeg", upsert: false });
+    if (error) throw error;
+    fotoUrl = sb.storage.from("referencias").getPublicUrl(path).data.publicUrl;
+    $("#qFotoImg").src = URL.createObjectURL(blob);
+    $("#qFotoPrev").hidden = false;
+    $("#qFotoBtn").textContent = "Cambiar foto";
+    msg.textContent = "Foto lista. Irá en tu mensaje de WhatsApp.";
+  } catch {
+    quitarFoto(false);
+    msg.textContent = "No se pudo subir la foto. Intenta con otra, o envíala directo por WhatsApp.";
+  } finally {
+    subiendoFoto = false;
+    actualizaCotizar();
+  }
+}
+$("#qFotoBtn").onclick = () => $("#qFoto").click();
+$("#qFoto").onchange = e => subirFoto(e.target.files[0]);
+$("#qFotoQuitar").onclick = () => quitarFoto();
 
 /* ---------------- Inicio ---------------- */
 async function init() {
