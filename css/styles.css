@@ -109,3 +109,8 @@ textarea{min-height:96px;resize:vertical}
 .bk .notes{margin-top:6px;font-size:.9rem;color:var(--muted)}
 .days{display:flex;gap:8px;flex-wrap:wrap}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+
+/* Foto de referencia en Cotizar */
+.fotoPrev{margin-top:12px;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.fotoPrev img{max-width:100%;max-height:220px;border-radius:14px;border:1.5px solid var(--line);display:block;object-fit:cover}
+a.btn[aria-disabled="true"]{opacity:.55;pointer-events:none}
