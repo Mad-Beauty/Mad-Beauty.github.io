@@ -112,7 +112,7 @@
   <!-- COTIZAR -->
   <section id="cotizar" role="tabpanel" hidden>
     <h2>Cotiza tu diseño</h2>
-    <p class="muted" style="margin-bottom:16px">Cuéntanos qué diseño quieres. Al tocar el botón se abre WhatsApp: ahí puedes adjuntar fotos de inspiración.</p>
+    <p class="muted" style="margin-bottom:16px">Cuéntanos qué diseño quieres y, si tienes una foto de referencia, súbela. Al tocar el botón se abre WhatsApp con tu mensaje listo.</p>
     <div class="card">
       <div class="field">
         <label for="qNombre">Tu nombre (opcional)</label>
@@ -121,6 +121,16 @@
       <div class="field">
         <label for="qDesc">¿Qué diseño te gustaría?</label>
         <textarea id="qDesc" maxlength="600" placeholder="Ej. Acrílico almendra, francés en rosa con mariposas en dos uñas"></textarea>
+      </div>
+      <div class="field">
+        <span class="lbl">Foto de referencia (opcional)</span>
+        <input type="file" id="qFoto" accept="image/*" hidden>
+        <button class="btn ghost small" id="qFotoBtn" type="button">Subir una foto</button>
+        <div class="fotoPrev" id="qFotoPrev" hidden>
+          <img id="qFotoImg" alt="Tu foto de referencia">
+          <button class="btn ghost small" id="qFotoQuitar" type="button">Quitar foto</button>
+        </div>
+        <p class="muted" id="qFotoMsg" style="font-size:.85rem;margin-top:8px">Una imagen de las uñas que te gustan. Le llegará a la manicurista en tu mensaje.</p>
       </div>
       <a class="btn wa block" id="btnCotizar" target="_blank" rel="noopener">Cotizar por WhatsApp</a>
     </div>
