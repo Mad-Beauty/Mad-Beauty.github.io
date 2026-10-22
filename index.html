@@ -124,8 +124,11 @@
       </div>
       <div class="field">
         <span class="lbl">Foto de referencia (opcional)</span>
-        <input type="file" id="qFoto" accept="image/*" hidden>
-        <button class="btn ghost small" id="qFotoBtn" type="button">Subir una foto</button>
+        <div class="dropzone" id="qDrop">
+          <input type="file" id="qFoto" class="visually-hidden" accept="image/*,.jpg,.jpeg,.jfif,.png,.webp,.heic,.heif,.avif">
+          <label class="btn ghost small" id="qFotoBtn" for="qFoto">Subir una foto</label>
+          <span class="muted dropHint">o arrástrala aquí</span>
+        </div>
         <div class="fotoPrev" id="qFotoPrev" hidden>
           <img id="qFotoImg" alt="Tu foto de referencia">
           <button class="btn ghost small" id="qFotoQuitar" type="button">Quitar foto</button>
