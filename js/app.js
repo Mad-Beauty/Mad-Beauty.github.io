@@ -165,6 +165,7 @@ async function agendar() {
   $("#doneSum").innerHTML = `<strong>${esc(prettyDay(st.day))}</strong><br>de <strong>${hm(data.start_time)}</strong> a <strong>${hm(data.end_time)}</strong><br>${data.services.map(s => esc(s.name)).join(", ")}<br>Total estimado: <strong>${money(data.total)}</strong>`;
   $("#doneWa").href = url;
   $("#formCard").hidden = true; $("#doneCard").hidden = false;
+  renderRecordatorio($("#doneRemind"), { id: data.id, code: data.cancel_code, day: st.day, start: data.start_time, end: data.end_time, services: data.services });
   renderMisCitas();
   window.open(url, "_blank", "noopener");
 }
@@ -174,6 +175,102 @@ function nuevaCita() {
   ["#nombre", "#tel", "#notas", "#fecha"].forEach(s => $(s).value = "");
   renderChecks(); updateTotal(); refreshSlots();
   $("#doneCard").hidden = true; $("#formCard").hidden = false;
+}
+
+/* ---------------- Recordatorios ---------------- */
+const pushOk = () => !!sb && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && !!CFG.VAPID_PUBLIC_KEY;
+const recordadas = () => store.get("unas:remind", []);
+const decir = (el, texto) => { el.textContent = texto; el.hidden = false; };
+const b64aBytes = s => {
+  const pad = "=".repeat((4 - s.length % 4) % 4);
+  const raw = atob((s + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from([...raw].map(ch => ch.charCodeAt(0)));
+};
+
+// Activa el aviso automático (llega un día antes) en este dispositivo
+async function activarRecordatorio(c, msg) {
+  try {
+    if (Notification.permission === "denied") {
+      decir(msg, "Los avisos están bloqueados en tu navegador. Actívalos en la configuración del sitio, o agrega la cita a tu calendario.");
+      return false;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") { decir(msg, "No se activó el aviso. Puedes agregar la cita a tu calendario."); return false; }
+    await navigator.serviceWorker.register("sw-clientas.js");
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64aBytes(CFG.VAPID_PUBLIC_KEY) });
+    const k = sub.toJSON();
+    const { error } = await sb.rpc("save_client_push", { p_id: c.id, p_code: c.code, p_endpoint: k.endpoint, p_p256dh: k.keys.p256dh, p_auth: k.keys.auth });
+    if (error) throw error;
+    store.set("unas:remind", [...recordadas(), c.id]);
+    decir(msg, "Listo. Te avisaremos un día antes de tu cita.");
+    return true;
+  } catch (e) {
+    console.error("Recordatorio:", e);
+    decir(msg, "No se pudo activar el aviso. Intenta de nuevo o agrega la cita a tu calendario.");
+    return false;
+  }
+}
+
+// Archivo de calendario (.ics) con alarmas: sirve en iPhone y en cualquier teléfono
+function descargarIcs(c) {
+  const [y, m, d] = c.day.split("-").map(Number);
+  const utc = t => {
+    const [h, mi] = String(t).split(":").map(Number);
+    return new Date(Date.UTC(y, m - 1, d, h + 6, mi)).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""); // México: UTC-6
+  };
+  const esc1 = s => String(s).replace(/\\/g, "\\\\").replace(/[,;]/g, ch => "\\" + ch).replace(/\n/g, "\\n");
+  const negocio = (settings && settings.business_name) || "Mad Beauty";
+  const alarma = (trigger, texto) => ["BEGIN:VALARM", "TRIGGER:" + trigger, "ACTION:DISPLAY", "DESCRIPTION:" + esc1(texto), "END:VALARM"];
+  const lines = [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//" + negocio + "//Citas//ES", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    "UID:" + c.id + "@citas",
+    "DTSTAMP:" + new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""),
+    "DTSTART:" + utc(c.start), "DTEND:" + utc(c.end),
+    "SUMMARY:" + esc1("Cita en " + negocio),
+    "DESCRIPTION:" + esc1((c.services || []).map(s => s.name).join(", ")),
+    ...alarma("-P1D", "Mañana tienes tu cita en " + negocio),
+    ...alarma("-PT2H", "Tu cita en " + negocio + " es en 2 horas"),
+    "END:VEVENT", "END:VCALENDAR"
+  ];
+  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "cita-" + negocio.toLowerCase().replace(/\s+/g, "-") + ".ics";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+// Dibuja los botones de recordatorio de UNA cita dentro de `box`
+// c = { id, code, day, start, end, services }
+function renderRecordatorio(box, c) {
+  box.innerHTML = "";
+  const wrap = document.createElement("div"); wrap.className = "remind";
+  const fila = document.createElement("div"); fila.className = "row";
+  const msg = document.createElement("p"); msg.className = "muted remindMsg";
+
+  if (pushOk()) {
+    if (recordadas().includes(c.id)) {
+      msg.textContent = "Te avisaremos un día antes de tu cita.";
+    } else {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "btn ghost small"; b.textContent = "Avisarme un día antes";
+      b.onclick = async () => { b.disabled = true; if (await activarRecordatorio(c, msg)) b.remove(); else b.disabled = false; };
+      fila.appendChild(b);
+    }
+  } else {
+    msg.textContent = "Para que tu teléfono te recuerde la cita, agrégala a tu calendario.";
+  }
+  const cal = document.createElement("button");
+  cal.type = "button"; cal.className = "btn ghost small"; cal.textContent = "Agregar a mi calendario";
+  cal.onclick = () => descargarIcs(c);
+  fila.appendChild(cal);
+
+  wrap.appendChild(fila);
+  wrap.appendChild(msg);                       // siempre presente: aquí salen el "Listo" y los errores
+  if (!msg.textContent) msg.hidden = true;
+  box.appendChild(wrap);
 }
 
 /* ---------------- Mis citas ---------------- */
@@ -201,6 +298,12 @@ async function renderMisCitas() {
         ${activa ? '<button class="x" type="button">Cancelar</button>' : ""}`;
     const x = d.querySelector("button");
     if (x) x.onclick = () => cancelar(b, mine);
+    if (activa) {
+      const rb = document.createElement("div");
+      d.firstElementChild.appendChild(rb);
+      const mia = mine.find(m => m.id === b.id) || {};
+      renderRecordatorio(rb, { id: b.id, code: mia.code, day: b.day, start: b.start_time, end: b.end_time, services: b.services });
+    }
     box.appendChild(d);
   });
 }
