@@ -123,3 +123,9 @@ a.btn[aria-disabled="true"]{opacity:.55;pointer-events:none}
   .dropHint{display:inline}
 }
 .dropzone.over{border-color:var(--accent);background:var(--soft)}
+
+/* Recordatorio de cita */
+.remind{margin:12px 0 4px;padding:12px;border:1.5px dashed var(--line);border-radius:14px}
+.remind .row{display:flex;flex-wrap:wrap;gap:8px}
+.remind .remindMsg{margin:8px 0 0;font-size:.88rem}
+.appt .remind{margin-top:10px}
