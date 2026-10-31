@@ -115,6 +115,47 @@ function renderSlots() {
     : "No hay horarios disponibles ese día para esos servicios. Prueba con otra fecha.";
 }
 
+/* ---------------- Calendario propio (siempre claro) ---------------- */
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+let calMes = ""; // primer día del mes que se muestra (AAAA-MM-01)
+
+function renderCal() {
+  const box = $("#cal");
+  if (!settings) return;
+  const hoy = todayISO(), max = addDays(hoy, settings.max_days_ahead);
+  if (!calMes) calMes = (st.day || hoy).slice(0, 7) + "-01";
+  const [y, m] = calMes.split("-").map(Number);
+  const primero = new Date(y, m - 1, 1).getDay();      // 0 = domingo
+  const total = new Date(y, m, 0).getDate();
+  const hayAntes = calMes > hoy.slice(0, 7) + "-01";
+  const hayDespues = addDays(calMes, 32).slice(0, 7) + "-01" <= max.slice(0, 7) + "-01";
+
+  let celdas = "";
+  for (let i = 0; i < primero; i++) celdas += "<span></span>";
+  for (let d = 1; d <= total; d++) {
+    const iso = `${y}-${pad(m)}-${pad(d)}`;
+    const cerrado = iso < hoy || iso > max || settings.closed_days.includes(new Date(y, m - 1, d).getDay());
+    celdas += `<button type="button" class="calDia${iso === hoy ? " hoy" : ""}" data-d="${iso}" ${cerrado ? "disabled" : ""} aria-pressed="${iso === st.day}">${d}</button>`;
+  }
+  box.innerHTML = `
+    <div class="calTop">
+      <button type="button" class="calNav" data-nav="-1" aria-label="Mes anterior" ${hayAntes ? "" : "disabled"}>‹</button>
+      <strong>${MESES[m - 1]} ${y}</strong>
+      <button type="button" class="calNav" data-nav="1" aria-label="Mes siguiente" ${hayDespues ? "" : "disabled"}>›</button>
+    </div>
+    <div class="calSem"><span>D</span><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span></div>
+    <div class="calGrid">${celdas}</div>`;
+  box.querySelectorAll("[data-nav]").forEach(b => b.onclick = () => {
+    calMes = addDays(calMes, Number(b.dataset.nav) > 0 ? 32 : -1).slice(0, 7) + "-01";
+    renderCal();
+  });
+  box.querySelectorAll("[data-d]").forEach(b => b.onclick = () => {
+    $("#fecha").value = b.dataset.d;
+    onFecha(); renderCal();
+  });
+  $("#calSel").textContent = st.day ? prettyDay(st.day).replace(/^./, c => c.toUpperCase()) : "";
+}
+
 function onFecha() {
   const v = $("#fecha").value;
   st.start = ""; $("#fechaErr").textContent = "";
@@ -173,7 +214,7 @@ async function agendar() {
 function nuevaCita() {
   st.sel = new Set(); st.day = ""; st.start = "";
   ["#nombre", "#tel", "#notas", "#fecha"].forEach(s => $(s).value = "");
-  renderChecks(); updateTotal(); refreshSlots();
+  renderChecks(); updateTotal(); refreshSlots(); renderCal();
   $("#doneCard").hidden = true; $("#formCard").hidden = false;
 }
 
@@ -235,7 +276,15 @@ function descargarIcs(c) {
     ...alarma("-PT2H", "Tu cita en " + negocio + " es en 2 horas"),
     "END:VEVENT", "END:VCALENDAR"
   ];
-  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+  const texto = lines.join("\r\n");
+
+  // iPhone (Safari): abrir el evento como "data:" hace que se abra directo la hoja "Agregar a Calendario",
+  // sin pasar por una descarga de archivos.
+  const ua = navigator.userAgent;
+  const iosSafari = /iPhone|iPad|iPod/.test(ua) && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+  if (iosSafari) { window.location.href = "data:text/calendar;charset=utf-8," + encodeURIComponent(texto); return; }
+
+  const blob = new Blob([texto], { type: "text/calendar;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = "cita-" + negocio.toLowerCase().replace(/\s+/g, "-") + ".ics";
   document.body.appendChild(a); a.click(); a.remove();
@@ -434,7 +483,7 @@ async function init() {
   document.title = settings.business_name + " · Agenda tu cita";
   $("#fecha").min = todayISO();
   $("#fecha").max = addDays(todayISO(), settings.max_days_ahead);
-  $("#fecha").onchange = onFecha;
+  renderCal();
   $("#btnAgendar").onclick = agendar;
   $("#btnOtra").onclick = nuevaCita;
 
