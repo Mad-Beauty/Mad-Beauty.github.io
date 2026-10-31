@@ -23,7 +23,7 @@
 <meta name="theme-color" content="#FCF8F6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/styles.css?v=15">
 </head>
 <body>
 <div class="wrap">
@@ -72,8 +72,10 @@
         <div class="checks" id="checks"></div>
       </div>
       <div class="field">
-        <label for="fecha">Fecha</label>
-        <input type="date" id="fecha">
+        <span class="lbl" id="calLbl">Fecha</span>
+        <input type="hidden" id="fecha">
+        <div class="cal" id="cal" role="group" aria-labelledby="calLbl"></div>
+        <p class="calSel" id="calSel" aria-live="polite"></p>
         <div class="err" id="fechaErr"></div>
       </div>
       <div class="field">
@@ -143,8 +145,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js"></script>
-<script src="js/common.js"></script>
-<script src="js/app.js"></script>
+<script src="config.js?v=15"></script>
+<script src="js/common.js?v=15"></script>
+<script src="js/app.js?v=15"></script>
 </body>
 </html>
